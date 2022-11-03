@@ -6,6 +6,7 @@ from PIL import Image
 from glob import glob
 import torchvision.transforms as transforms
 import os
+from file import Walk
 
 batch_w = 600
 batch_h = 400
@@ -17,9 +18,7 @@ class MemoryFriendlyLoader(torch.utils.data.Dataset):
         self.task = task
         self.train_low_data_names = []
 
-        for root, dirs, names in os.walk(self.low_img_dir):
-            for name in names:
-                self.train_low_data_names.append(os.path.join(root, name))
+        self.train_low_data_names = Walk(img_dir, ['jpg', 'png', 'jpeg'])
 
         self.train_low_data_names.sort()
         self.count = len(self.train_low_data_names)
@@ -29,14 +28,22 @@ class MemoryFriendlyLoader(torch.utils.data.Dataset):
         self.transform = transforms.Compose(transform_list)
 
     def load_images_transform(self, file):
-        im = Image.open(file).convert('RGB')
+        im = None
+        try:
+            im = Image.open(file).convert('RGB')
+        except:
+            return im
         img_norm = self.transform(im).numpy()
         img_norm = np.transpose(img_norm, (1, 2, 0))
         return img_norm
 
     def __getitem__(self, index):
 
+        img_name = self.train_low_data_names[index].split('\\')[-1]
         low = self.load_images_transform(self.train_low_data_names[index])
+
+        if low is None:
+            return self.__getitem__(index+1)
 
         h = low.shape[0]
         w = low.shape[1]
@@ -50,7 +57,6 @@ class MemoryFriendlyLoader(torch.utils.data.Dataset):
         low = np.asarray(low, dtype=np.float32)
         low = np.transpose(low[:, :, :], (2, 0, 1))
 
-        img_name = self.train_low_data_names[index].split('\\')[-1]
         # if self.task == 'test':
         #     # img_name = self.train_low_data_names[index].split('\\')[-1]
         #     return torch.from_numpy(low), img_name
