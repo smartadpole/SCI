@@ -43,7 +43,7 @@ class MemoryFriendlyLoader(torch.utils.data.Dataset):
         low = self.load_images_transform(self.train_low_data_names[index])
 
         if low is None:
-            return self.__getitem__(index+1)
+            return self.__getitem__((index+1)%self.__len__())
 
         h = low.shape[0]
         w = low.shape[1]
